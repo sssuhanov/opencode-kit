@@ -35,6 +35,10 @@ Use a path to the kit CLI (placeholder):
 - `"<path-to-opencode-kit>/bin/opencode-kit" add-skill <name>`
 - `"<path-to-opencode-kit>/bin/opencode-kit" add-agent <name>`
 
+Example agents:
+
+- `security` (read-only checks for secrets/PII/release hygiene)
+
 Installs into the target repo:
 
 - Skills → `.opencode/skill/<name>/SKILL.md`

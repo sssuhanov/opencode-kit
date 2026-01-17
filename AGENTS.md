@@ -177,6 +177,7 @@ This repo is Bash + Markdown, so “imports/types” translate to:
 ## Change workflow for agents
 
 - Keep changes minimal and targeted.
+- Always check `ROADMAP.md` after making changes and update it if needed so it stays consistent.
 - If you touch installer behavior, ensure:
   - Existing commands still work: `./bin/opencode-kit --help`
   - You don’t violate: copy-only, refuse overwrite (except update), no auto-edit of target docs.
