@@ -2,6 +2,7 @@
 name: template-usage
 description: How templates work in this vault (Templater folder mappings, where to create notes, and manual templates).
 compatibility: opencode
+version: 1.0.0
 metadata:
   domain: obsidian
   scope: templates

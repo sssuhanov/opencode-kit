@@ -1,3 +1,7 @@
+---
+version: 1.0.0
+---
+
 # Lazy Rules Loader
 
 These instructions define how to use rule modules stored under `.opencode/rules/`.

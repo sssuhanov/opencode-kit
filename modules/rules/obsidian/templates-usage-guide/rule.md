@@ -1,3 +1,7 @@
+---
+version: 1.0.0
+---
+
 # Obsidian templates (general)
 
 Guidance for working with templates in Obsidian vaults.

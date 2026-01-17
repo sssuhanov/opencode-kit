@@ -2,6 +2,7 @@
 name: note-hygiene
 description: Hygiene rules for this vault (empty notes, naming consistency, stray files) with a workflow for tracking issues.
 compatibility: opencode
+version: 1.0.0
 metadata:
   domain: obsidian
   scope: hygiene

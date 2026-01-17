@@ -3,6 +3,7 @@ id: research
 aliases: []
 tags: []
 description: Research project and provide info about it
+version: 1.0.0
 mode: primary
 model: openai/gpt-5.1-codex-mini
 temperature: 0.1

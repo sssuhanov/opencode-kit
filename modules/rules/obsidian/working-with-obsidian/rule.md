@@ -1,3 +1,7 @@
+---
+version: 1.0.0
+---
+
 # Working with Obsidian vaults
 
 These are general rules for editing an Obsidian vault safely.

@@ -7,7 +7,7 @@ It ships a single CLI (`bin/opencode-kit`) plus a set of modules under `modules/
 ## Core behavior
 
 - **Copy-only**: copies files into the target repo (no symlinks).
-- **Refuse overwrite**: if destination exists → hard error.
+- **Refuse overwrite**: if destination exists → hard error (except: `opencode-kit update`).
 - **No auto-edit**: does not automatically edit the target repo’s `AGENTS.md` or `opencode.json`.
 - **Manifest**: writes/updates `./.opencode-kit.json` in the target repo root.
 
@@ -79,6 +79,13 @@ In the target repo root, `opencode-kit` creates/updates `./.opencode-kit.json` t
 - What modules were installed (skills/agents/rules/lazy rules base)
 - Where they were installed
 - When they were installed
+- Which module version was installed (`moduleVersion`)
+
+## Update installed modules
+
+- `"<path-to-opencode-kit>/bin/opencode-kit" update`
+
+`update` overwrites only the files previously installed by `opencode-kit` (paths tracked in `.opencode-kit.json`) and refreshes their `moduleVersion`.
 
 ## Make it easier to run
 

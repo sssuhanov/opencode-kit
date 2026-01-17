@@ -1,3 +1,7 @@
+---
+version: 1.0.0
+---
+
 # PARA folder structure (general)
 
 PARA is a popular way to organize a knowledge base:

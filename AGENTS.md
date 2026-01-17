@@ -37,6 +37,7 @@ artifact is the executable script itself.
 ### Run / sanity check
 
 - Show CLI help: `./bin/opencode-kit --help`
+- Update installed modules: `./bin/opencode-kit update`
 - List available modules:
   - Skills: `./bin/opencode-kit list skills`
   - Agents: `./bin/opencode-kit list agents`
@@ -79,8 +80,11 @@ There is no repo-pinned tooling; use what is available on your machine.
 ## Core behavior and constraints
 
 - **Copy-only**: installer copies files into a target repo; no symlinks.
-- **Refuse overwrite**: if destination exists, error out.
+- **Refuse overwrite**: if destination exists, error out (except: `opencode-kit update`).
 - **Do not auto-edit** a target project’s `AGENTS.md` or `opencode.json`.
+- **Do not change repo-local installer outputs**: never modify this repo’s `.opencode/` folder or `.opencode-kit.json` in patches.
+  - If you need to change `.opencode/` or `.opencode-kit.json`, do it by running `bin/opencode-kit` in a target project (installer-managed output), not by editing those files.
+  - When developing `update`, test it in a separate temp target repo; don’t run `./bin/opencode-kit update` inside this repo.
 - **Manifest**: installer creates/updates `./.opencode-kit.json` in the target
   repo to track what was installed and when.
 
@@ -175,7 +179,7 @@ This repo is Bash + Markdown, so “imports/types” translate to:
 - Keep changes minimal and targeted.
 - If you touch installer behavior, ensure:
   - Existing commands still work: `./bin/opencode-kit --help`
-  - You don’t violate: copy-only, refuse overwrite, no auto-edit of target docs.
+  - You don’t violate: copy-only, refuse overwrite (except update), no auto-edit of target docs.
 - If adding a new module, update nothing outside `modules/` unless necessary.
 
 ## Common gotchas

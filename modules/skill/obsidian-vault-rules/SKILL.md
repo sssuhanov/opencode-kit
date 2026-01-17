@@ -2,6 +2,7 @@
 name: obsidian-vault-rules
 description: Rules for working in this Obsidian PARA vault (YAML, linking, structure, safe edits).
 compatibility: opencode
+version: 1.0.0
 metadata:
   domain: obsidian
   scope: vault

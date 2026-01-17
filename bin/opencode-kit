@@ -4,6 +4,49 @@ set -euo pipefail
 KIT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MANIFEST_FILENAME=".opencode-kit.json"
 
+module_version_from_file() {
+  local path="$1"
+
+  python3 - "$path" <<'PY'
+import re
+import sys
+
+path = sys.argv[1]
+
+with open(path, "r", encoding="utf-8") as f:
+  text = f.read()
+
+if not text.startswith("---"):
+  print("")
+  sys.exit(0)
+
+m = re.match(r"^---\s*\n(.*?)\n---\s*\n", text, re.S)
+if not m:
+  print("")
+  sys.exit(0)
+
+frontmatter = m.group(1).splitlines()
+for line in frontmatter:
+  if line.strip().startswith("version:"):
+    value = line.split(":", 1)[1].strip().strip('"').strip("'")
+    print(value)
+    sys.exit(0)
+
+print("")
+PY
+}
+
+require_module_version() {
+  local path="$1"
+  local version
+
+  version="$(module_version_from_file "$path")"
+  [[ -n "$version" ]] || die "module is missing version frontmatter: $path"
+  [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "invalid module version (use semver x.y.z): $version ($path)"
+
+  printf '%s\n' "$version"
+}
+
 err() {
   printf 'error: %s\n' "$*" >&2
 }
@@ -38,11 +81,12 @@ JSON
 }
 
 json_set() {
-  # json_set <kind> <name> <source> <path1> [path2 ...]
+  # json_set <kind> <name> <source> <module_version> <path1> [path2 ...]
   local kind="$1"
   local name="$2"
   local source="$3"
-  shift 3
+  local module_version="$4"
+  shift 4
 
   local paths_json
   paths_json="$(python3 - <<'PY' "$@"
@@ -51,12 +95,12 @@ print(json.dumps(sys.argv[1:]))
 PY
 )"
 
-  python3 - "$MANIFEST_FILENAME" "$kind" "$name" "$source" "$paths_json" <<'PY'
+  python3 - "$MANIFEST_FILENAME" "$kind" "$name" "$source" "$module_version" "$paths_json" <<'PY'
 import datetime
 import json
 import sys
 
-manifest_path, kind, name, source, paths_json = sys.argv[1:]
+manifest_path, kind, name, source, module_version, paths_json = sys.argv[1:]
 paths = json.loads(paths_json)
 
 def load():
@@ -73,19 +117,18 @@ installed = data.setdefault("installed", {})
 
 today = datetime.date.today().isoformat()
 
+entry = {
+  "source": source,
+  "moduleVersion": module_version,
+  "installedPaths": paths,
+  "installedAt": today,
+}
+
 if kind == "rulesLazy":
-  installed["rulesLazy"] = {
-    "source": source,
-    "installedPaths": paths,
-    "installedAt": today,
-  }
+  installed["rulesLazy"] = entry
 else:
   bucket = installed.setdefault(kind, {})
-  bucket[name] = {
-    "source": source,
-    "installedPaths": paths,
-    "installedAt": today,
-  }
+  bucket[name] = entry
 
 dump(data)
 PY
@@ -137,8 +180,11 @@ add_rules_lazy() {
   mkdir -p "$dst_dir"
   cp "$src" "$dst"
 
+  local module_version
+  module_version="$(require_module_version "$src")"
+
   ensure_manifest
-  json_set "rulesLazy" "rulesLazy" "modules/rules/_lazy.md" "$dst"
+  json_set "rulesLazy" "rulesLazy" "modules/rules/_lazy.md" "$module_version" "$dst"
 
   printf 'installed rules lazy loader: %s\n' "$dst"
   printf '\n'
@@ -175,8 +221,11 @@ add_rule() {
   cp "$src_dir/loader.md" "$dst_dir/loader.md"
   cp "$src_dir/rule.md" "$dst_dir/rule.md"
 
+  local module_version
+  module_version="$(require_module_version "$src_dir/loader.md")"
+
   ensure_manifest
-  json_set "rule" "$id" "modules/rules/$group/$doc" "$dst_dir/loader.md" "$dst_dir/rule.md"
+  json_set "rule" "$id" "modules/rules/$group/$doc" "$module_version" "$dst_dir/loader.md" "$dst_dir/rule.md"
 
   printf 'installed rule: %s\n' "$id"
   printf '  %s\n' "$dst_dir/loader.md"
@@ -201,8 +250,11 @@ add_skill() {
   mkdir -p "$dst_dir"
   cp "$src" "$dst"
 
+  local module_version
+  module_version="$(require_module_version "$src")"
+
   ensure_manifest
-  json_set "skill" "$name" "modules/skill/$name" "$dst"
+  json_set "skill" "$name" "modules/skill/$name" "$module_version" "$dst"
 
   printf 'installed skill: %s -> %s\n' "$name" "$dst"
 }
@@ -225,10 +277,205 @@ add_agent() {
   mkdir -p "$dst_dir"
   cp "$src" "$dst"
 
+  local module_version
+  module_version="$(require_module_version "$src")"
+
   ensure_manifest
-  json_set "agent" "$name" "modules/agent/$name.md" "$dst"
+  json_set "agent" "$name" "modules/agent/$name.md" "$module_version" "$dst"
 
   printf 'installed agent: %s -> %s\n' "$name" "$dst"
+}
+
+cmd_update() {
+  ensure_manifest
+
+  python3 - "$MANIFEST_FILENAME" "$KIT_ROOT" <<'PY'
+import datetime
+import json
+import os
+import re
+import shutil
+import sys
+
+manifest_path, kit_root = sys.argv[1:]
+
+today = datetime.date.today().isoformat()
+
+
+def load_manifest():
+  with open(manifest_path, "r", encoding="utf-8") as f:
+    return json.load(f)
+
+
+def dump_manifest(data):
+  with open(manifest_path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+
+
+def read_frontmatter_version(path):
+  try:
+    with open(path, "r", encoding="utf-8") as f:
+      text = f.read()
+  except FileNotFoundError:
+    return ""
+
+  if not text.startswith("---"):
+    return ""
+
+  m = re.match(r"^---\s*\n(.*?)\n---\s*\n", text, re.S)
+  if not m:
+    return ""
+
+  for line in m.group(1).splitlines():
+    if line.strip().startswith("version:"):
+      return line.split(":", 1)[1].strip().strip('"').strip("'")
+
+  return ""
+
+
+def parse_semver(value, *, allow_empty=False, context=""):
+  value = (value or "").strip()
+  if value == "" and allow_empty:
+    return None
+
+  m = re.match(r"^(\d+)\.(\d+)\.(\d+)$", value)
+  if not m:
+    raise ValueError(f"invalid semver x.y.z: {value} ({context})")
+
+  return (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+
+
+def safe_dst_path(path):
+  if os.path.isabs(path):
+    raise ValueError(f"absolute path not allowed in manifest: {path}")
+
+  normalized = os.path.normpath(path)
+  if normalized == ".." or normalized.startswith(".." + os.sep):
+    raise ValueError(f"parent traversal not allowed in manifest: {path}")
+
+  if not (normalized == ".opencode" or normalized.startswith(".opencode" + os.sep)):
+    raise ValueError(f"destination must stay under .opencode/: {path}")
+
+  return normalized
+
+
+def kit_paths_for_entry(kind, name, dst_paths):
+  if kind == "rulesLazy":
+    if len(dst_paths) != 1:
+      raise ValueError(f"rulesLazy must have exactly 1 installed path (got {len(dst_paths)})")
+    return {dst_paths[0]: os.path.join(kit_root, "modules/rules/_lazy.md")}
+
+  if kind == "agent":
+    if len(dst_paths) != 1:
+      raise ValueError(f"agent must have exactly 1 installed path (got {len(dst_paths)})")
+    return {dst_paths[0]: os.path.join(kit_root, f"modules/agent/{name}.md")}
+
+  if kind == "skill":
+    if len(dst_paths) != 1:
+      raise ValueError(f"skill must have exactly 1 installed path (got {len(dst_paths)})")
+    return {dst_paths[0]: os.path.join(kit_root, f"modules/skill/{name}/SKILL.md")}
+
+  if kind == "rule":
+    group, doc = name.split("/", 1)
+    src_dir = os.path.join(kit_root, f"modules/rules/{group}/{doc}")
+    mapping = {}
+    for dst in dst_paths:
+      base = os.path.basename(dst)
+      if base == "loader.md":
+        mapping[dst] = os.path.join(src_dir, "loader.md")
+      elif base == "rule.md":
+        mapping[dst] = os.path.join(src_dir, "rule.md")
+      else:
+        raise ValueError(f"unexpected rule installed path: {dst}")
+    return mapping
+
+  raise ValueError(f"unknown kind: {kind}")
+
+
+def representative_kit_file(kind, name):
+  if kind == "rulesLazy":
+    return os.path.join(kit_root, "modules/rules/_lazy.md")
+  if kind == "agent":
+    return os.path.join(kit_root, f"modules/agent/{name}.md")
+  if kind == "skill":
+    return os.path.join(kit_root, f"modules/skill/{name}/SKILL.md")
+  if kind == "rule":
+    group, doc = name.split("/", 1)
+    return os.path.join(kit_root, f"modules/rules/{group}/{doc}/loader.md")
+  raise ValueError(f"unknown kind: {kind}")
+
+
+def update_one(kind, name, entry):
+  if not isinstance(entry, dict):
+    return False
+
+  dst_paths = entry.get("installedPaths") or []
+  if not isinstance(dst_paths, list):
+    raise ValueError(f"installedPaths must be a list ({kind} {name})")
+
+  dst_paths = [safe_dst_path(p) for p in dst_paths]
+
+  kit_file = representative_kit_file(kind, name)
+  kit_version = read_frontmatter_version(kit_file)
+  if kit_version == "":
+    raise ValueError(f"kit module is missing version frontmatter: {kit_file}")
+  kit_tuple = parse_semver(kit_version, context=kit_file)
+
+  manifest_version = entry.get("moduleVersion", "")
+  if manifest_version:
+    installed_tuple = parse_semver(manifest_version, context=f"manifest {kind} {name}")
+    installed_version = manifest_version
+  else:
+    detected = read_frontmatter_version(dst_paths[0]) if dst_paths else ""
+    installed_tuple = parse_semver(detected, allow_empty=True, context=dst_paths[0] if dst_paths else "") or (0, 0, 0)
+    installed_version = detected if detected else "0.0.0"
+
+  should_update = kit_tuple > installed_tuple
+
+  changed = False
+  if should_update:
+    mapping = kit_paths_for_entry(kind, name, dst_paths)
+    for dst, src in mapping.items():
+      if not os.path.exists(src):
+        raise ValueError(f"kit source missing: {src}")
+      os.makedirs(os.path.dirname(dst), exist_ok=True)
+      shutil.copyfile(src, dst)
+
+    entry["installedAt"] = today
+    entry["moduleVersion"] = kit_version
+    changed = True
+    print(f"updated {kind} {name}: {installed_version} -> {kit_version}")
+  else:
+    if entry.get("moduleVersion") != installed_version and manifest_version == "":
+      entry["moduleVersion"] = installed_version
+      changed = True
+
+    print(f"up-to-date {kind} {name}: {installed_version}")
+
+  return changed
+
+
+manifest = load_manifest()
+installed = manifest.get("installed", {})
+
+modified = False
+
+rules_lazy = installed.get("rulesLazy")
+if rules_lazy:
+  modified = update_one("rulesLazy", "rulesLazy", rules_lazy) or modified
+
+for kind in ["rule", "skill", "agent"]:
+  bucket = installed.get(kind, {})
+  if not isinstance(bucket, dict):
+    raise ValueError(f"installed.{kind} must be an object")
+
+  for name, entry in bucket.items():
+    modified = update_one(kind, name, entry) or modified
+
+if modified:
+  dump_manifest(manifest)
+PY
 }
 
 usage() {
@@ -239,10 +486,11 @@ Usage:
   opencode-kit add-rule <group>/<doc>
   opencode-kit add-skill <name>
   opencode-kit add-agent <name>
+  opencode-kit update
 
 Policy:
 - Copy only (portable)
-- Refuse overwrite: if destination exists, error
+- Refuse overwrite: if destination exists, error (except: update)
 - Does not edit AGENTS.md or opencode.json
 - Writes manifest: .opencode-kit.json
 
@@ -277,6 +525,9 @@ main() {
       ;;
     add-agent)
       add_agent "${2:-}"
+      ;;
+    update)
+      cmd_update
       ;;
     -h|--help|help|"")
       usage

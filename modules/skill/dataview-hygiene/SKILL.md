@@ -2,6 +2,7 @@
 name: dataview-hygiene
 description: Checklist for writing and validating Dataview queries in this vault without breaking dashboards.
 compatibility: opencode
+version: 1.0.0
 metadata:
   domain: obsidian
   scope: dataview
