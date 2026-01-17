@@ -1,0 +1,290 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+KIT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MANIFEST_FILENAME=".opencode-kit.json"
+
+err() {
+  printf 'error: %s\n' "$*" >&2
+}
+
+die() {
+  err "$*"
+  exit 1
+}
+
+project_root() {
+  if git rev-parse --show-toplevel >/dev/null 2>&1; then
+    git rev-parse --show-toplevel
+  else
+    pwd
+  fi
+}
+
+ensure_manifest() {
+  if [[ ! -f "$MANIFEST_FILENAME" ]]; then
+    cat > "$MANIFEST_FILENAME" <<'JSON'
+{
+  "version": 1,
+  "installed": {
+    "rulesLazy": null,
+    "rule": {},
+    "skill": {},
+    "agent": {}
+  }
+}
+JSON
+  fi
+}
+
+json_set() {
+  # json_set <kind> <name> <source> <path1> [path2 ...]
+  local kind="$1"
+  local name="$2"
+  local source="$3"
+  shift 3
+
+  local paths_json
+  paths_json="$(python3 - <<'PY' "$@"
+import json,sys
+print(json.dumps(sys.argv[1:]))
+PY
+)"
+
+  python3 - "$MANIFEST_FILENAME" "$kind" "$name" "$source" "$paths_json" <<'PY'
+import datetime
+import json
+import sys
+
+manifest_path, kind, name, source, paths_json = sys.argv[1:]
+paths = json.loads(paths_json)
+
+def load():
+  with open(manifest_path, "r", encoding="utf-8") as f:
+    return json.load(f)
+
+def dump(data):
+  with open(manifest_path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+
+data = load()
+installed = data.setdefault("installed", {})
+
+today = datetime.date.today().isoformat()
+
+if kind == "rulesLazy":
+  installed["rulesLazy"] = {
+    "source": source,
+    "installedPaths": paths,
+    "installedAt": today,
+  }
+else:
+  bucket = installed.setdefault(kind, {})
+  bucket[name] = {
+    "source": source,
+    "installedPaths": paths,
+    "installedAt": today,
+  }
+
+dump(data)
+PY
+}
+
+validate_kebab() {
+  local value="$1"
+  [[ "$value" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || die "invalid name (use kebab-case): $value"
+}
+
+cmd_list() {
+  local kind="${1:-}"
+  case "$kind" in
+    skills)
+      (cd "$KIT_ROOT" && ls -1 "modules/skill" 2>/dev/null || true)
+      ;;
+    agents)
+      (cd "$KIT_ROOT" && ls -1 "modules/agent" 2>/dev/null | sed 's/\.md$//' || true)
+      ;;
+    rules)
+      # Print <group>/<doc> for rule modules that contain both loader.md and rule.md
+      (cd "$KIT_ROOT" && \
+        find "modules/rules" -mindepth 2 -maxdepth 3 -type f -name "loader.md" 2>/dev/null | while read -r loader; do
+          base_dir="${loader%/loader.md}"
+          if [[ -f "$base_dir/rule.md" ]]; then
+            rel="${base_dir#modules/rules/}"
+            printf '%s\n' "$rel"
+          fi
+        done | sort -u
+      )
+      ;;
+    *)
+      die "usage: opencode-kit list {skills|agents|rules}"
+      ;;
+  esac
+}
+
+add_rules_lazy() {
+  local src="$KIT_ROOT/modules/rules/_lazy.md"
+  [[ -f "$src" ]] || die "kit is missing modules/rules/_lazy.md"
+
+  local dst_dir=".opencode/rules"
+  local dst="$dst_dir/_lazy.md"
+
+  if [[ -e "$dst" ]]; then
+    die "rules lazy loader already exists: $dst"
+  fi
+
+  mkdir -p "$dst_dir"
+  cp "$src" "$dst"
+
+  ensure_manifest
+  json_set "rulesLazy" "rulesLazy" "modules/rules/_lazy.md" "$dst"
+
+  printf 'installed rules lazy loader: %s\n' "$dst"
+  printf '\n'
+  printf 'To enable lazy rules, add to opencode.json:\n'
+  printf '  "instructions": [".opencode/rules/_lazy.md", ".opencode/rules/**/loader.md"]\n'
+}
+
+add_rule() {
+  local id="${1:-}"
+  [[ -n "$id" ]] || die "usage: opencode-kit add-rule <group>/<doc>"
+
+  local group="${id%%/*}"
+  local doc="${id#*/}"
+  [[ "$group" != "$id" ]] || die "rule id must be <group>/<doc> (got: $id)"
+  [[ -n "$doc" ]] || die "rule id must be <group>/<doc> (got: $id)"
+
+  validate_kebab "$group"
+  validate_kebab "$doc"
+
+  local lazy_dst=".opencode/rules/_lazy.md"
+  [[ -f "$lazy_dst" ]] || die "missing $lazy_dst (run: opencode-kit add-rules-lazy)"
+
+  local src_dir="$KIT_ROOT/modules/rules/$group/$doc"
+  [[ -d "$src_dir" ]] || die "rule module not found: $id ($src_dir)"
+  [[ -f "$src_dir/loader.md" ]] || die "rule module is missing loader.md: $src_dir/loader.md"
+  [[ -f "$src_dir/rule.md" ]] || die "rule module is missing rule.md: $src_dir/rule.md"
+
+  local dst_dir=".opencode/rules/$group/$doc"
+  if [[ -e "$dst_dir" ]]; then
+    die "destination already exists: $dst_dir"
+  fi
+
+  mkdir -p "$dst_dir"
+  cp "$src_dir/loader.md" "$dst_dir/loader.md"
+  cp "$src_dir/rule.md" "$dst_dir/rule.md"
+
+  ensure_manifest
+  json_set "rule" "$id" "modules/rules/$group/$doc" "$dst_dir/loader.md" "$dst_dir/rule.md"
+
+  printf 'installed rule: %s\n' "$id"
+  printf '  %s\n' "$dst_dir/loader.md"
+  printf '  %s\n' "$dst_dir/rule.md"
+}
+
+add_skill() {
+  local name="${1:-}"
+  [[ -n "$name" ]] || die "usage: opencode-kit add-skill <name>"
+  validate_kebab "$name"
+
+  local src="$KIT_ROOT/modules/skill/$name/SKILL.md"
+  [[ -f "$src" ]] || die "skill module not found: $name ($src)"
+
+  local dst_dir=".opencode/skill/$name"
+  local dst="$dst_dir/SKILL.md"
+
+  if [[ -e "$dst_dir" || -e "$dst" ]]; then
+    die "destination already exists: $dst_dir"
+  fi
+
+  mkdir -p "$dst_dir"
+  cp "$src" "$dst"
+
+  ensure_manifest
+  json_set "skill" "$name" "modules/skill/$name" "$dst"
+
+  printf 'installed skill: %s -> %s\n' "$name" "$dst"
+}
+
+add_agent() {
+  local name="${1:-}"
+  [[ -n "$name" ]] || die "usage: opencode-kit add-agent <name>"
+  validate_kebab "$name"
+
+  local src="$KIT_ROOT/modules/agent/$name.md"
+  [[ -f "$src" ]] || die "agent module not found: $name ($src)"
+
+  local dst_dir=".opencode/agent"
+  local dst="$dst_dir/$name.md"
+
+  if [[ -e "$dst" ]]; then
+    die "destination already exists: $dst"
+  fi
+
+  mkdir -p "$dst_dir"
+  cp "$src" "$dst"
+
+  ensure_manifest
+  json_set "agent" "$name" "modules/agent/$name.md" "$dst"
+
+  printf 'installed agent: %s -> %s\n' "$name" "$dst"
+}
+
+usage() {
+  cat <<'HELP'
+Usage:
+  opencode-kit list skills|agents|rules
+  opencode-kit add-rules-lazy
+  opencode-kit add-rule <group>/<doc>
+  opencode-kit add-skill <name>
+  opencode-kit add-agent <name>
+
+Policy:
+- Copy only (portable)
+- Refuse overwrite: if destination exists, error
+- Does not edit AGENTS.md or opencode.json
+- Writes manifest: .opencode-kit.json
+
+Rule modules:
+- Stored in kit: modules/rules/<group>/<doc>/{loader.md,rule.md}
+- Installed to: .opencode/rules/<group>/<doc>/{loader.md,rule.md}
+- Lazy loader must exist: .opencode/rules/_lazy.md
+
+Naming:
+- <group>, <doc>, <name> must be kebab-case: ^[a-z0-9]+(-[a-z0-9]+)*$
+HELP
+}
+
+main() {
+  local root
+  root="$(project_root)"
+  cd "$root"
+
+  local cmd="${1:-}"
+  case "$cmd" in
+    list)
+      cmd_list "${2:-}"
+      ;;
+    add-rules-lazy)
+      add_rules_lazy
+      ;;
+    add-rule)
+      add_rule "${2:-}"
+      ;;
+    add-skill)
+      add_skill "${2:-}"
+      ;;
+    add-agent)
+      add_agent "${2:-}"
+      ;;
+    -h|--help|help|"")
+      usage
+      ;;
+    *)
+      die "unknown command: $cmd (run: opencode-kit --help)"
+      ;;
+  esac
+}
+
+main "$@"
