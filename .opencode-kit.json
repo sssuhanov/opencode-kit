@@ -19,6 +19,28 @@
       }
     },
     "skill": {},
-    "agent": {}
+    "agent": {
+      "research": {
+        "source": "modules/agent/research.md",
+        "installedPaths": [
+          ".opencode/agent/research.md"
+        ],
+        "installedAt": "2026-01-17"
+      },
+      "ask": {
+        "source": "modules/agent/ask.md",
+        "installedPaths": [
+          ".opencode/agent/ask.md"
+        ],
+        "installedAt": "2026-01-17"
+      },
+      "review": {
+        "source": "modules/agent/review.md",
+        "installedPaths": [
+          ".opencode/agent/review.md"
+        ],
+        "installedAt": "2026-01-17"
+      }
+    }
   }
 }
