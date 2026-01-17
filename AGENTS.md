@@ -6,6 +6,8 @@ It ships a single CLI (`bin/opencode-kit`) plus a set of Markdown modules under
 
 If anything in a request can be understood two ways, ask a clarifying question.
 
+See also: `ROADMAP.md` (planned work / TODOs).
+
 ## Cursor/Copilot rules
 
 - No Cursor rules found (`.cursor/rules/`, `.cursorrules`).
@@ -54,6 +56,8 @@ There is no repo-pinned tooling; use what is available on your machine.
   - `modules/rules/<group>/<doc>/{loader.md,rule.md}` — rule modules.
 - `SESSION_NOTES.md`
   - Design constraints and conventions; treat as authoritative.
+- `ROADMAP.md`
+  - Short TODO list / planned features.
 
 ## Core behavior and constraints
 
