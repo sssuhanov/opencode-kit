@@ -8,6 +8,8 @@ If anything in a request can be understood two ways, ask a clarifying question.
 
 See also: `ROADMAP.md` (planned work / TODOs).
 
+Start here: `README.md`
+
 ## Support rules (project-local)
 
 These are not auto-loaded by `opencode.json`.
@@ -59,6 +61,8 @@ There is no repo-pinned tooling; use what is available on your machine.
 
 ## Repo structure
 
+- `README.md`
+  - How to use `opencode-kit`.
 - `bin/opencode-kit`
   - Main CLI entrypoint. Runs in the *target project root* (uses `git rev-parse`
     when available) and writes/updates `./.opencode-kit.json` there.

@@ -5,3 +5,6 @@
 - 1.1 Versions for modules
 - 1.2 Profiles for adding many modules at the same time
 - 1.3 Add tests to this project
+- 1.4 make init command for start working with the kit
+- 1.5 Change a way how to install kit. Don't want to use it as a <path-to-kit>/bin/opencode-kit everytime
+- 1.6 Add opertunity to change instructions in opencode.json
