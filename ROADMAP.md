@@ -15,7 +15,7 @@
 
 ## Agents
 
-- [ ] Change ask, review, research agent to not allow change anything and not allow to use another subagent to change something.
+- [x] Change ask, review, research agent to not allow change anything and not allow to use another subagent to change something.
 - [x] Add security subagent who checked if all files are ready to be public and don't have anyting critical in the project.
 
 ## Tests
