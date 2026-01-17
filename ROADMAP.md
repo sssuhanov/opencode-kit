@@ -4,7 +4,7 @@
 
 - [x] Versions for modules
 - [ ] Profiles for adding many modules at the same time
-- [ ] Add module rule for git
+- [x] Add module skill: git-change-workflow
 
 ## CLI functions
 
