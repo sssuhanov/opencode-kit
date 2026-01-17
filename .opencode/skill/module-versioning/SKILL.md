@@ -1,6 +1,7 @@
 ---
 name: module-versioning
-description: Policy for opencode-kit: bump module versions whenever modules/ change so opencode-kit update can propagate.
+description: Policy for opencode-kit bump module versions whenever modules/ change so opencode-kit update can propagate.
+license: MIT
 compatibility: opencode
 metadata:
   repo: opencode-kit
