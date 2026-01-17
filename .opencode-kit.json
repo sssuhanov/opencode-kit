@@ -45,6 +45,14 @@
         ],
         "installedAt": "2026-01-17",
         "moduleVersion": "1.0.0"
+      },
+      "security": {
+        "source": "modules/agent/security.md",
+        "moduleVersion": "1.0.0",
+        "installedPaths": [
+          ".opencode/agent/security.md"
+        ],
+        "installedAt": "2026-01-17"
       }
     }
   }
