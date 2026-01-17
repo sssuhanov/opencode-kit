@@ -3,6 +3,7 @@ id: ask
 aliases: []
 tags: []
 description: Ask questions to understand more about conext and goals
+version: 1.0.0
 mode: primary
 model: openai/gpt-5.1-codex-mini
 temperature: 0.1

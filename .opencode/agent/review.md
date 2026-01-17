@@ -3,6 +3,7 @@ id: review
 aliases: []
 tags: []
 description: Reviews the second brain for quality and best practices
+version: 1.0.0
 mode: subagent
 model: openai/gpt-5.1-codex-mini
 temperature: 0.1

@@ -6,7 +6,8 @@
       "installedPaths": [
         ".opencode/rules/_lazy.md"
       ],
-      "installedAt": "2026-01-17"
+      "installedAt": "2026-01-17",
+      "moduleVersion": "1.0.0"
     },
     "rule": {
       "ai/opencode": {
@@ -15,7 +16,8 @@
           ".opencode/rules/ai/opencode/loader.md",
           ".opencode/rules/ai/opencode/rule.md"
         ],
-        "installedAt": "2026-01-17"
+        "installedAt": "2026-01-17",
+        "moduleVersion": "1.0.0"
       }
     },
     "skill": {},
@@ -25,21 +27,24 @@
         "installedPaths": [
           ".opencode/agent/research.md"
         ],
-        "installedAt": "2026-01-17"
+        "installedAt": "2026-01-17",
+        "moduleVersion": "1.0.0"
       },
       "ask": {
         "source": "modules/agent/ask.md",
         "installedPaths": [
           ".opencode/agent/ask.md"
         ],
-        "installedAt": "2026-01-17"
+        "installedAt": "2026-01-17",
+        "moduleVersion": "1.0.0"
       },
       "review": {
         "source": "modules/agent/review.md",
         "installedPaths": [
           ".opencode/agent/review.md"
         ],
-        "installedAt": "2026-01-17"
+        "installedAt": "2026-01-17",
+        "moduleVersion": "1.0.0"
       }
     }
   }

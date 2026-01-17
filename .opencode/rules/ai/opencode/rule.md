@@ -1,3 +1,7 @@
+---
+version: 1.0.0
+---
+
 # OpenCode (skills, agents, rules)
 
 Use this as general guidance for working with OpenCode configuration and its
