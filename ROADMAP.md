@@ -9,3 +9,4 @@
 - 1.5 Change a way how to install kit. Don't want to use it as a <path-to-kit>/bin/opencode-kit everytime
 - 1.6 Add opertunity to change instructions in opencode.json
 - 1.7 Add status command to cli to check what is installed
+- Change ask, review, research agent to not allow change anything and not allow to use another subagent to change something.
