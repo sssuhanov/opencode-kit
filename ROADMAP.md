@@ -10,3 +10,4 @@
 - 1.6 Add opertunity to change instructions in opencode.json
 - 1.7 Add status command to cli to check what is installed
 - Change ask, review, research agent to not allow change anything and not allow to use another subagent to change something.
+- Add security subagent who checked if all files are ready to be public and don't have anyting critical in the project.
