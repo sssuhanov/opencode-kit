@@ -8,6 +8,19 @@ If anything in a request can be understood two ways, ask a clarifying question.
 
 See also: `ROADMAP.md` (planned work / TODOs).
 
+## Support rules (project-local)
+
+These are not auto-loaded by `opencode.json`.
+
+- `support/rules/goal.md`
+- `support/rules/constraints.md`
+- `support/rules/layout.md`
+- `support/rules/naming.md`
+- `support/rules/opencode.md`
+- `support/rules/cli.md`
+- `support/rules/manifest.md`
+- `support/rules/limits.md`
+
 ## Cursor/Copilot rules
 
 - No Cursor rules found (`.cursor/rules/`, `.cursorrules`).
@@ -54,8 +67,8 @@ There is no repo-pinned tooling; use what is available on your machine.
   - `modules/agent/<name>.md` — agent presets.
   - `modules/rules/_lazy.md` — global lazy rules loader.
   - `modules/rules/<group>/<doc>/{loader.md,rule.md}` — rule modules.
-- `SESSION_NOTES.md`
-  - Design constraints and conventions; treat as authoritative.
+- `support/rules/`
+  - Design constraints and conventions for this repo.
 - `ROADMAP.md`
   - Short TODO list / planned features.
 
