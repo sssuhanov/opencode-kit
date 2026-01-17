@@ -3,7 +3,7 @@ id: research
 aliases: []
 tags: []
 description: Research project and provide info about it
-mode: subagent
+mode: primary
 model: openai/gpt-5.1-codex-mini
 temperature: 0.1
 tools:
