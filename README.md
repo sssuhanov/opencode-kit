@@ -26,70 +26,32 @@ Use a path to the kit CLI (placeholder):
 
 ### List available modules
 
-- `"<path-to-opencode-kit>/bin/opencode-kit" list skills`
-- `"<path-to-opencode-kit>/bin/opencode-kit" list agents`
-- `"<path-to-opencode-kit>/bin/opencode-kit" list rules`
+- `"<path-to-opencode-kit>/bin/opencode-kit" list modules`
 
-### Install a skill or agent
+### Install a module
 
-- `"<path-to-opencode-kit>/bin/opencode-kit" add-skill <name>`
-- `"<path-to-opencode-kit>/bin/opencode-kit" add-agent <name>`
-
-Example agents:
-
-- `security` (read-only checks for secrets/PII/release hygiene)
+- `"<path-to-opencode-kit>/bin/opencode-kit" add-module <group>/<module>`
 
 Installs into the target repo:
 
-- Skills → `.opencode/skill/<name>/SKILL.md`
-- Agents → `.opencode/agent/<name>.md`
-
-### Install rules (lazy-loading pattern)
-
-1) Install the lazy loader (required once per target repo):
-
-- `"<path-to-opencode-kit>/bin/opencode-kit" add-rules-lazy`
-
-2) Install a rule module:
-
-- `"<path-to-opencode-kit>/bin/opencode-kit" add-rule <group>/<doc>`
-
-Installs into the target repo:
-
-- `.opencode/rules/_lazy.md`
-- `.opencode/rules/<group>/<doc>/loader.md`
-- `.opencode/rules/<group>/<doc>/rule.md`
-
-## Enable lazy rules in the target repo (manual)
-
-Because `opencode-kit` does not edit `opencode.json`, you must add the instructions yourself:
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "instructions": [
-    ".opencode/rules/_lazy.md",
-    ".opencode/rules/**/loader.md"
-  ]
-}
-```
-
-This keeps `loader.md` always-on and loads full `rule.md` only when relevant.
+- Agents → `.opencode/agent/<group>-<module>-<doc>.md`
+- Skills → `.opencode/skill/<skill-id>/SKILL.md`
+- Rules → `.opencode/rules/<group>-<module>-<doc>.md`
 
 ## Manifest (`.opencode-kit.json`)
 
-In the target repo root, `opencode-kit` creates/updates `./.opencode-kit.json` to track:
+In the target repo root, `opencode-kit` creates/updates `./.opencode-kit.json` (schema version 2) to track:
 
-- What modules were installed (skills/agents/rules/lazy rules base)
-- Where they were installed
+- Which modules were installed
+- Exactly which files were installed (`src`/`dst` mapping)
 - When they were installed
-- Which module version was installed (`moduleVersion`)
+- Which module version was installed (`moduleVersion`, read from `MODULE.md`)
 
 ## Update installed modules
 
 - `"<path-to-opencode-kit>/bin/opencode-kit" update`
 
-`update` overwrites only the files previously installed by `opencode-kit` (paths tracked in `.opencode-kit.json`) and refreshes their `moduleVersion`.
+`update` overwrites only the files previously installed by `opencode-kit` (as tracked in `.opencode-kit.json`) when the kit’s `MODULE.md` version is newer.
 
 ## Make it easier to run
 
@@ -99,5 +61,5 @@ Optional: add the kit to your shell `PATH` so you can run `opencode-kit` directl
 
 - `destination already exists: ...`
   - `opencode-kit` refuses overwrites. Remove/rename the destination manually and retry.
-- `missing .opencode/rules/_lazy.md (run: opencode-kit add-rules-lazy)`
-  - Install the lazy loader first before `add-rule`.
+- `unsupported manifest version: ...`
+  - This repo no longer supports legacy manifests. Delete `.opencode-kit.json` in the target repo and reinstall modules.

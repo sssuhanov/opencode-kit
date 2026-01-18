@@ -1,5 +1,5 @@
 ---
-version: 1.0.0
+version: 1.0.1
 ---
 
 # OpenCode (skills, agents, rules)
@@ -15,14 +15,14 @@ instruction building blocks.
 
 ## Skills (recommended for reusable, on-demand guidance)
 
-- Location (project-scoped): `.opencode/skill/<name>/SKILL.md`
+- Location (project-scoped): `.opencode/skill/<skill-id>/SKILL.md`
 - Each skill lives in its own folder and contains a single `SKILL.md`.
-- Skill naming must be kebab-case: `^[a-z0-9]+(-[a-z0-9]+)*$`.
+- Skill IDs should be kebab-case: `^[a-z0-9]+(-[a-z0-9]+)*$`.
 
 ## Rules (always-on instructions)
 
-- Prefer small “selector” rules + optional full rules (lazy load pattern).
-- If using lazy rules, keep `loader.md` lightweight and point to a full `rule.md`.
+- Rules included via `opencode.json -> instructions` are eagerly loaded.
+- Keep rules concise and task-focused; if a workflow needs conditional loading, document that workflow explicitly.
 
 ## Working principles
 

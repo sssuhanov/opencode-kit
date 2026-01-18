@@ -64,226 +64,232 @@ project_root() {
   fi
 }
 
-ensure_manifest() {
-  if [[ ! -f "$MANIFEST_FILENAME" ]]; then
-    cat > "$MANIFEST_FILENAME" <<'JSON'
-{
-  "version": 1,
-  "installed": {
-    "rulesLazy": null,
-    "rule": {},
-    "skill": {},
-    "agent": {}
-  }
-}
-JSON
-  fi
-}
-
-json_set() {
-  # json_set <kind> <name> <source> <module_version> <path1> [path2 ...]
-  local kind="$1"
-  local name="$2"
-  local source="$3"
-  local module_version="$4"
-  shift 4
-
-  local paths_json
-  paths_json="$(python3 - <<'PY' "$@"
-import json,sys
-print(json.dumps(sys.argv[1:]))
-PY
-)"
-
-  python3 - "$MANIFEST_FILENAME" "$kind" "$name" "$source" "$module_version" "$paths_json" <<'PY'
-import datetime
-import json
-import sys
-
-manifest_path, kind, name, source, module_version, paths_json = sys.argv[1:]
-paths = json.loads(paths_json)
-
-def load():
-  with open(manifest_path, "r", encoding="utf-8") as f:
-    return json.load(f)
-
-def dump(data):
-  with open(manifest_path, "w", encoding="utf-8") as f:
-    json.dump(data, f, indent=2, ensure_ascii=False)
-    f.write("\n")
-
-data = load()
-installed = data.setdefault("installed", {})
-
-today = datetime.date.today().isoformat()
-
-entry = {
-  "source": source,
-  "moduleVersion": module_version,
-  "installedPaths": paths,
-  "installedAt": today,
-}
-
-if kind == "rulesLazy":
-  installed["rulesLazy"] = entry
-else:
-  bucket = installed.setdefault(kind, {})
-  bucket[name] = entry
-
-dump(data)
-PY
-}
-
 validate_kebab() {
   local value="$1"
   [[ "$value" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || die "invalid name (use kebab-case): $value"
 }
 
+ensure_manifest() {
+  if [[ ! -f "$MANIFEST_FILENAME" ]]; then
+    cat > "$MANIFEST_FILENAME" <<'JSON'
+{
+  "version": 2,
+  "installed": {
+    "module": {}
+  }
+}
+JSON
+    return
+  fi
+
+  local version
+  version="$(python3 - "$MANIFEST_FILENAME" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as f:
+  data = json.load(f)
+
+print(data.get("version", ""))
+PY
+)"
+
+  [[ "$version" == "2" ]] || die "unsupported manifest version: ${version:-<missing>} (expected: 2). Delete .opencode-kit.json and reinstall."
+}
+
+json_files_from_pairs() {
+  python3 - <<'PY' "$@"
+import json
+import sys
+
+args = sys.argv[1:]
+if len(args) % 2 != 0:
+  raise SystemExit("expected src/dst pairs")
+
+files = []
+for i in range(0, len(args), 2):
+  files.append({"src": args[i], "dst": args[i + 1]})
+
+print(json.dumps(files, ensure_ascii=False))
+PY
+}
+
+json_set_module() {
+  # json_set_module <module_id> <source> <module_version> <files_json>
+  local module_id="$1"
+  local source="$2"
+  local module_version="$3"
+  local files_json="$4"
+
+  python3 - "$MANIFEST_FILENAME" "$module_id" "$source" "$module_version" "$files_json" <<'PY'
+import datetime
+import json
+import sys
+
+manifest_path, module_id, source, module_version, files_json = sys.argv[1:]
+files = json.loads(files_json)
+
+today = datetime.date.today().isoformat()
+
+with open(manifest_path, "r", encoding="utf-8") as f:
+  data = json.load(f)
+
+installed = data.setdefault("installed", {})
+modules = installed.setdefault("module", {})
+
+modules[module_id] = {
+  "source": source,
+  "moduleVersion": module_version,
+  "installedAt": today,
+  "files": files,
+}
+
+with open(manifest_path, "w", encoding="utf-8") as f:
+  json.dump(data, f, indent=2, ensure_ascii=False)
+  f.write("\n")
+PY
+}
+
 cmd_list() {
   local kind="${1:-}"
   case "$kind" in
-    skills)
-      (cd "$KIT_ROOT" && ls -1 "modules/skill" 2>/dev/null || true)
-      ;;
-    agents)
-      (cd "$KIT_ROOT" && ls -1 "modules/agent" 2>/dev/null | sed 's/\.md$//' || true)
-      ;;
-    rules)
-      # Print <group>/<doc> for rule modules that contain both loader.md and rule.md
+    modules)
       (cd "$KIT_ROOT" && \
-        find "modules/rules" -mindepth 2 -maxdepth 3 -type f -name "loader.md" 2>/dev/null | while read -r loader; do
-          base_dir="${loader%/loader.md}"
-          if [[ -f "$base_dir/rule.md" ]]; then
-            rel="${base_dir#modules/rules/}"
-            printf '%s\n' "$rel"
-          fi
-        done | sort -u
+        find "modules" -mindepth 3 -maxdepth 3 -type f -name "MODULE.md" 2>/dev/null | \
+        sed -e 's#^modules/##' -e 's#/MODULE\.md$##' | \
+        sort -u
       )
       ;;
     *)
-      die "usage: opencode-kit list {skills|agents|rules}"
+      die "usage: opencode-kit list modules"
       ;;
   esac
 }
 
-add_rules_lazy() {
-  local src="$KIT_ROOT/modules/rules/_lazy.md"
-  [[ -f "$src" ]] || die "kit is missing modules/rules/_lazy.md"
-
-  local dst_dir=".opencode/rules"
-  local dst="$dst_dir/_lazy.md"
-
-  if [[ -e "$dst" ]]; then
-    die "rules lazy loader already exists: $dst"
-  fi
-
-  mkdir -p "$dst_dir"
-  cp "$src" "$dst"
-
-  local module_version
-  module_version="$(require_module_version "$src")"
-
-  ensure_manifest
-  json_set "rulesLazy" "rulesLazy" "modules/rules/_lazy.md" "$module_version" "$dst"
-
-  printf 'installed rules lazy loader: %s\n' "$dst"
-  printf '\n'
-  printf 'To enable lazy rules, add to opencode.json:\n'
-  printf '  "instructions": [".opencode/rules/_lazy.md", ".opencode/rules/**/loader.md"]\n'
-}
-
-add_rule() {
+add_module() {
   local id="${1:-}"
-  [[ -n "$id" ]] || die "usage: opencode-kit add-rule <group>/<doc>"
+  [[ -n "$id" ]] || die "usage: opencode-kit add-module <group>/<module>"
 
   local group="${id%%/*}"
-  local doc="${id#*/}"
-  [[ "$group" != "$id" ]] || die "rule id must be <group>/<doc> (got: $id)"
-  [[ -n "$doc" ]] || die "rule id must be <group>/<doc> (got: $id)"
+  local module="${id#*/}"
+  [[ "$group" != "$id" ]] || die "module id must be <group>/<module> (got: $id)"
+  [[ -n "$module" ]] || die "module id must be <group>/<module> (got: $id)"
 
   validate_kebab "$group"
-  validate_kebab "$doc"
+  validate_kebab "$module"
 
-  local lazy_dst=".opencode/rules/_lazy.md"
-  [[ -f "$lazy_dst" ]] || die "missing $lazy_dst (run: opencode-kit add-rules-lazy)"
+  local src_dir="$KIT_ROOT/modules/$group/$module"
+  [[ -d "$src_dir" ]] || die "module not found: $id ($src_dir)"
 
-  local src_dir="$KIT_ROOT/modules/rules/$group/$doc"
-  [[ -d "$src_dir" ]] || die "rule module not found: $id ($src_dir)"
-  [[ -f "$src_dir/loader.md" ]] || die "rule module is missing loader.md: $src_dir/loader.md"
-  [[ -f "$src_dir/rule.md" ]] || die "rule module is missing rule.md: $src_dir/rule.md"
-
-  local dst_dir=".opencode/rules/$group/$doc"
-  if [[ -e "$dst_dir" ]]; then
-    die "destination already exists: $dst_dir"
-  fi
-
-  mkdir -p "$dst_dir"
-  cp "$src_dir/loader.md" "$dst_dir/loader.md"
-  cp "$src_dir/rule.md" "$dst_dir/rule.md"
+  local module_meta="$src_dir/MODULE.md"
+  [[ -f "$module_meta" ]] || die "module is missing MODULE.md: $module_meta"
 
   local module_version
-  module_version="$(require_module_version "$src_dir/loader.md")"
+  module_version="$(require_module_version "$module_meta")"
 
-  ensure_manifest
-  json_set "rule" "$id" "modules/rules/$group/$doc" "$module_version" "$dst_dir/loader.md" "$dst_dir/rule.md"
+  local -a install_pairs=()
+  local -a check_paths=()
 
-  printf 'installed rule: %s\n' "$id"
-  printf '  %s\n' "$dst_dir/loader.md"
-  printf '  %s\n' "$dst_dir/rule.md"
-}
+  local agents_dir="$src_dir/agents"
+  if [[ -d "$agents_dir" ]]; then
+    shopt -s nullglob
+    local agent
+    for agent in "$agents_dir"/*.md; do
+      local doc
+      doc="$(basename "$agent" .md)"
+      validate_kebab "$doc"
 
-add_skill() {
-  local name="${1:-}"
-  [[ -n "$name" ]] || die "usage: opencode-kit add-skill <name>"
-  validate_kebab "$name"
+      local agent_id
+      agent_id="$group-$module-$doc"
 
-  local src="$KIT_ROOT/modules/skill/$name/SKILL.md"
-  [[ -f "$src" ]] || die "skill module not found: $name ($src)"
+      local src_rel
+      src_rel="modules/$group/$module/agents/$doc.md"
 
-  local dst_dir=".opencode/skill/$name"
-  local dst="$dst_dir/SKILL.md"
+      local dst
+      dst=".opencode/agent/$agent_id.md"
 
-  if [[ -e "$dst_dir" || -e "$dst" ]]; then
-    die "destination already exists: $dst_dir"
+      install_pairs+=("$src_rel" "$dst")
+      check_paths+=("$dst")
+    done
+    shopt -u nullglob
   fi
 
-  mkdir -p "$dst_dir"
-  cp "$src" "$dst"
+  local rules_dir="$src_dir/rules"
+  if [[ -d "$rules_dir" ]]; then
+    shopt -s nullglob
+    local rule
+    for rule in "$rules_dir"/*.md; do
+      local doc
+      doc="$(basename "$rule" .md)"
+      validate_kebab "$doc"
 
-  local module_version
-  module_version="$(require_module_version "$src")"
+      local rule_id
+      rule_id="$group-$module-$doc"
 
-  ensure_manifest
-  json_set "skill" "$name" "modules/skill/$name" "$module_version" "$dst"
+      local src_rel
+      src_rel="modules/$group/$module/rules/$doc.md"
 
-  printf 'installed skill: %s -> %s\n' "$name" "$dst"
-}
+      local dst
+      dst=".opencode/rules/$rule_id.md"
 
-add_agent() {
-  local name="${1:-}"
-  [[ -n "$name" ]] || die "usage: opencode-kit add-agent <name>"
-  validate_kebab "$name"
-
-  local src="$KIT_ROOT/modules/agent/$name.md"
-  [[ -f "$src" ]] || die "agent module not found: $name ($src)"
-
-  local dst_dir=".opencode/agent"
-  local dst="$dst_dir/$name.md"
-
-  if [[ -e "$dst" ]]; then
-    die "destination already exists: $dst"
+      install_pairs+=("$src_rel" "$dst")
+      check_paths+=("$dst")
+    done
+    shopt -u nullglob
   fi
 
-  mkdir -p "$dst_dir"
-  cp "$src" "$dst"
+  local skills_dir="$src_dir/skills"
+  if [[ -d "$skills_dir" ]]; then
+    shopt -s nullglob
+    local skill
+    for skill in "$skills_dir"/*/SKILL.md; do
+      local skill_id
+      skill_id="$(basename "$(dirname "$skill")")"
+      validate_kebab "$skill_id"
 
-  local module_version
-  module_version="$(require_module_version "$src")"
+      local src_rel
+      src_rel="modules/$group/$module/skills/$skill_id/SKILL.md"
+
+      local dst_dir
+      dst_dir=".opencode/skill/$skill_id"
+
+      local dst
+      dst="$dst_dir/SKILL.md"
+
+      install_pairs+=("$src_rel" "$dst")
+      check_paths+=("$dst_dir" "$dst")
+    done
+    shopt -u nullglob
+  fi
+
+  if [[ "${#install_pairs[@]}" -eq 0 ]]; then
+    die "module has no installable content: $id"
+  fi
+
+  local path
+  for path in "${check_paths[@]}"; do
+    if [[ -e "$path" ]]; then
+      die "destination already exists: $path"
+    fi
+  done
+
+  local i
+  for ((i = 0; i < ${#install_pairs[@]}; i += 2)); do
+    local src_rel="${install_pairs[i]}"
+    local dst="${install_pairs[i + 1]}"
+
+    mkdir -p "$(dirname "$dst")"
+    cp "$KIT_ROOT/$src_rel" "$dst"
+  done
 
   ensure_manifest
-  json_set "agent" "$name" "modules/agent/$name.md" "$module_version" "$dst"
 
-  printf 'installed agent: %s -> %s\n' "$name" "$dst"
+  local files_json
+  files_json="$(json_files_from_pairs "${install_pairs[@]}")"
+
+  json_set_module "$id" "modules/$group/$module" "$module_version" "$files_json"
+
+  printf 'installed module: %s\n' "$id"
 }
 
 cmd_update() {
@@ -334,15 +340,11 @@ def read_frontmatter_version(path):
   return ""
 
 
-def parse_semver(value, *, allow_empty=False, context=""):
+def parse_semver(value, *, context=""):
   value = (value or "").strip()
-  if value == "" and allow_empty:
-    return None
-
   m = re.match(r"^(\d+)\.(\d+)\.(\d+)$", value)
   if not m:
     raise ValueError(f"invalid semver x.y.z: {value} ({context})")
-
   return (int(m.group(1)), int(m.group(2)), int(m.group(3)))
 
 
@@ -360,118 +362,87 @@ def safe_dst_path(path):
   return normalized
 
 
-def kit_paths_for_entry(kind, name, dst_paths):
-  if kind == "rulesLazy":
-    if len(dst_paths) != 1:
-      raise ValueError(f"rulesLazy must have exactly 1 installed path (got {len(dst_paths)})")
-    return {dst_paths[0]: os.path.join(kit_root, "modules/rules/_lazy.md")}
+def safe_src_path(path):
+  if os.path.isabs(path):
+    raise ValueError(f"absolute src path not allowed in manifest: {path}")
 
-  if kind == "agent":
-    if len(dst_paths) != 1:
-      raise ValueError(f"agent must have exactly 1 installed path (got {len(dst_paths)})")
-    return {dst_paths[0]: os.path.join(kit_root, f"modules/agent/{name}.md")}
+  normalized = os.path.normpath(path)
+  if normalized == ".." or normalized.startswith(".." + os.sep):
+    raise ValueError(f"parent traversal not allowed in src: {path}")
 
-  if kind == "skill":
-    if len(dst_paths) != 1:
-      raise ValueError(f"skill must have exactly 1 installed path (got {len(dst_paths)})")
-    return {dst_paths[0]: os.path.join(kit_root, f"modules/skill/{name}/SKILL.md")}
+  if not (normalized == "modules" or normalized.startswith("modules" + os.sep)):
+    raise ValueError(f"src must stay under modules/: {path}")
 
-  if kind == "rule":
-    group, doc = name.split("/", 1)
-    src_dir = os.path.join(kit_root, f"modules/rules/{group}/{doc}")
-    mapping = {}
-    for dst in dst_paths:
-      base = os.path.basename(dst)
-      if base == "loader.md":
-        mapping[dst] = os.path.join(src_dir, "loader.md")
-      elif base == "rule.md":
-        mapping[dst] = os.path.join(src_dir, "rule.md")
-      else:
-        raise ValueError(f"unexpected rule installed path: {dst}")
-    return mapping
-
-  raise ValueError(f"unknown kind: {kind}")
+  return normalized
 
 
-def representative_kit_file(kind, name):
-  if kind == "rulesLazy":
-    return os.path.join(kit_root, "modules/rules/_lazy.md")
-  if kind == "agent":
-    return os.path.join(kit_root, f"modules/agent/{name}.md")
-  if kind == "skill":
-    return os.path.join(kit_root, f"modules/skill/{name}/SKILL.md")
-  if kind == "rule":
-    group, doc = name.split("/", 1)
-    return os.path.join(kit_root, f"modules/rules/{group}/{doc}/loader.md")
-  raise ValueError(f"unknown kind: {kind}")
+def module_meta_path(module_id):
+  group, module = module_id.split("/", 1)
+  return os.path.join(kit_root, "modules", group, module, "MODULE.md")
 
 
-def update_one(kind, name, entry):
+def update_one(module_id, entry):
   if not isinstance(entry, dict):
     return False
 
-  dst_paths = entry.get("installedPaths") or []
-  if not isinstance(dst_paths, list):
-    raise ValueError(f"installedPaths must be a list ({kind} {name})")
+  installed_version = entry.get("moduleVersion")
+  if not installed_version:
+    raise ValueError(f"moduleVersion missing for module {module_id}")
 
-  dst_paths = [safe_dst_path(p) for p in dst_paths]
+  files = entry.get("files")
+  if not isinstance(files, list) or not files:
+    raise ValueError(f"files missing/empty for module {module_id}")
 
-  kit_file = representative_kit_file(kind, name)
+  kit_file = module_meta_path(module_id)
   kit_version = read_frontmatter_version(kit_file)
   if kit_version == "":
     raise ValueError(f"kit module is missing version frontmatter: {kit_file}")
-  kit_tuple = parse_semver(kit_version, context=kit_file)
 
-  manifest_version = entry.get("moduleVersion", "")
-  if manifest_version:
-    installed_tuple = parse_semver(manifest_version, context=f"manifest {kind} {name}")
-    installed_version = manifest_version
-  else:
-    detected = read_frontmatter_version(dst_paths[0]) if dst_paths else ""
-    installed_tuple = parse_semver(detected, allow_empty=True, context=dst_paths[0] if dst_paths else "") or (0, 0, 0)
-    installed_version = detected if detected else "0.0.0"
+  kit_tuple = parse_semver(kit_version, context=kit_file)
+  installed_tuple = parse_semver(installed_version, context=f"manifest module {module_id}")
 
   should_update = kit_tuple > installed_tuple
 
   changed = False
   if should_update:
-    mapping = kit_paths_for_entry(kind, name, dst_paths)
-    for dst, src in mapping.items():
+    for file_entry in files:
+      if not isinstance(file_entry, dict):
+        raise ValueError(f"invalid file entry for module {module_id}: {file_entry}")
+
+      src_rel = safe_src_path(file_entry.get("src") or "")
+      dst_rel = safe_dst_path(file_entry.get("dst") or "")
+
+      src = os.path.join(kit_root, src_rel)
+      dst = dst_rel
+
       if not os.path.exists(src):
         raise ValueError(f"kit source missing: {src}")
+
       os.makedirs(os.path.dirname(dst), exist_ok=True)
       shutil.copyfile(src, dst)
 
     entry["installedAt"] = today
     entry["moduleVersion"] = kit_version
     changed = True
-    print(f"updated {kind} {name}: {installed_version} -> {kit_version}")
+    print(f"updated module {module_id}: {installed_version} -> {kit_version}")
   else:
-    if entry.get("moduleVersion") != installed_version and manifest_version == "":
-      entry["moduleVersion"] = installed_version
-      changed = True
-
-    print(f"up-to-date {kind} {name}: {installed_version}")
+    print(f"up-to-date module {module_id}: {installed_version}")
 
   return changed
 
 
 manifest = load_manifest()
+if manifest.get("version") != 2:
+  raise SystemExit("unsupported manifest version (expected 2). Delete .opencode-kit.json and reinstall.")
+
 installed = manifest.get("installed", {})
+modules = installed.get("module", {})
+if not isinstance(modules, dict):
+  raise SystemExit("installed.module must be an object")
 
 modified = False
-
-rules_lazy = installed.get("rulesLazy")
-if rules_lazy:
-  modified = update_one("rulesLazy", "rulesLazy", rules_lazy) or modified
-
-for kind in ["rule", "skill", "agent"]:
-  bucket = installed.get(kind, {})
-  if not isinstance(bucket, dict):
-    raise ValueError(f"installed.{kind} must be an object")
-
-  for name, entry in bucket.items():
-    modified = update_one(kind, name, entry) or modified
+for module_id, entry in modules.items():
+  modified = update_one(module_id, entry) or modified
 
 if modified:
   dump_manifest(manifest)
@@ -481,26 +452,29 @@ PY
 usage() {
   cat <<'HELP'
 Usage:
-  opencode-kit list skills|agents|rules
-  opencode-kit add-rules-lazy
-  opencode-kit add-rule <group>/<doc>
-  opencode-kit add-skill <name>
-  opencode-kit add-agent <name>
+  opencode-kit list modules
+  opencode-kit add-module <group>/<module>
   opencode-kit update
 
 Policy:
 - Copy only (portable)
-- Refuse overwrite: if destination exists, error (except: update)
+- Refuse overwrite: if destination exists, error (except: update overwrites manifest-tracked files)
 - Does not edit AGENTS.md or opencode.json
-- Writes manifest: .opencode-kit.json
+- Writes manifest: .opencode-kit.json (version 2)
 
-Rule modules:
-- Stored in kit: modules/rules/<group>/<doc>/{loader.md,rule.md}
-- Installed to: .opencode/rules/<group>/<doc>/{loader.md,rule.md}
-- Lazy loader must exist: .opencode/rules/_lazy.md
+Module layout (kit):
+- modules/<group>/<module>/MODULE.md
+- modules/<group>/<module>/agents/<doc>.md
+- modules/<group>/<module>/skills/<skill-id>/SKILL.md
+- modules/<group>/<module>/rules/<doc>.md
+
+Install destinations (target repo):
+- Agents -> .opencode/agent/<group>-<module>-<doc>.md
+- Skills -> .opencode/skill/<skill-id>/SKILL.md
+- Rules  -> .opencode/rules/<group>-<module>-<doc>.md
 
 Naming:
-- <group>, <doc>, <name> must be kebab-case: ^[a-z0-9]+(-[a-z0-9]+)*$
+- <group>, <module>, <doc>, <skill-id> must be kebab-case: ^[a-z0-9]+(-[a-z0-9]+)*$
 HELP
 }
 
@@ -514,17 +488,8 @@ main() {
     list)
       cmd_list "${2:-}"
       ;;
-    add-rules-lazy)
-      add_rules_lazy
-      ;;
-    add-rule)
-      add_rule "${2:-}"
-      ;;
-    add-skill)
-      add_skill "${2:-}"
-      ;;
-    add-agent)
-      add_agent "${2:-}"
+    add-module)
+      add_module "${2:-}"
       ;;
     update)
       cmd_update

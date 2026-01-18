@@ -2,12 +2,13 @@
 
 - CLI: `bin/opencode-kit`
 - Kit modules live in: `modules/`
-  - Skill: `modules/skill/<name>/SKILL.md`
-  - Agent: `modules/agent/<name>.md`
-  - Rules: `modules/rules/_lazy.md` and `modules/rules/<group>/<doc>/{loader.md,rule.md}`
+  - Module: `modules/<group>/<module>/MODULE.md`
+  - Agents: `modules/<group>/<module>/agents/<doc>.md`
+  - Skills: `modules/<group>/<module>/skills/<skill-id>/SKILL.md`
+  - Rules: `modules/<group>/<module>/rules/<doc>.md`
 
 ## Install destinations (inside a target repo)
 
-- Skills → `.opencode/skill/<name>/SKILL.md`
-- Agents → `.opencode/agent/<name>.md`
-- Rules → `.opencode/rules/_lazy.md`, plus `.opencode/rules/<group>/<doc>/{loader.md,rule.md}`
+- Agents → `.opencode/agent/<group>-<module>-<doc>.md`
+- Skills → `.opencode/skill/<skill-id>/SKILL.md`
+- Rules → `.opencode/rules/<group>-<module>-<doc>.md`

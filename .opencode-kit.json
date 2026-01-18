@@ -1,67 +1,40 @@
 {
-  "version": 1,
+  "version": 2,
   "installed": {
-    "rulesLazy": {
-      "source": "modules/rules/_lazy.md",
-      "installedPaths": [
-        ".opencode/rules/_lazy.md"
-      ],
-      "installedAt": "2026-01-17",
-      "moduleVersion": "1.0.0"
-    },
-    "rule": {
-      "ai/opencode": {
-        "source": "modules/rules/ai/opencode",
-        "installedPaths": [
-          ".opencode/rules/ai/opencode/loader.md",
-          ".opencode/rules/ai/opencode/rule.md"
-        ],
-        "installedAt": "2026-01-17",
-        "moduleVersion": "1.0.0"
-      }
-    },
-    "skill": {
-      "git-change-workflow": {
-        "source": "modules/skill/git-change-workflow",
+    "module": {
+      "opencode/core": {
+        "source": "modules/opencode/core",
+        "moduleVersion": "1.1.0",
+        "installedAt": "2026-01-18",
+        "files": [
+          {
+            "src": "modules/opencode/core/agents/ask.md",
+            "dst": ".opencode/agent/opencode-core-ask.md"
+          },
+          {
+            "src": "modules/opencode/core/agents/research.md",
+            "dst": ".opencode/agent/opencode-core-research.md"
+          },
+          {
+            "src": "modules/opencode/core/agents/security.md",
+            "dst": ".opencode/agent/opencode-core-security.md"
+          },
+          {
+            "src": "modules/opencode/core/rules/opencode.md",
+            "dst": ".opencode/rules/opencode-core-opencode.md"
+          }
+        ]
+      },
+      "git/workflow": {
+        "source": "modules/git/workflow",
         "moduleVersion": "1.0.0",
-        "installedPaths": [
-          ".opencode/skill/git-change-workflow/SKILL.md"
-        ],
-        "installedAt": "2026-01-17"
-      }
-    },
-    "agent": {
-      "research": {
-        "source": "modules/agent/research.md",
-        "installedPaths": [
-          ".opencode/agent/research.md"
-        ],
-        "installedAt": "2026-01-17",
-        "moduleVersion": "1.1.0"
-      },
-      "ask": {
-        "source": "modules/agent/ask.md",
-        "installedPaths": [
-          ".opencode/agent/ask.md"
-        ],
-        "installedAt": "2026-01-17",
-        "moduleVersion": "1.1.0"
-      },
-      "review": {
-        "source": "modules/agent/review.md",
-        "installedPaths": [
-          ".opencode/agent/review.md"
-        ],
-        "installedAt": "2026-01-17",
-        "moduleVersion": "1.1.0"
-      },
-      "security": {
-        "source": "modules/agent/security.md",
-        "moduleVersion": "1.0.0",
-        "installedPaths": [
-          ".opencode/agent/security.md"
-        ],
-        "installedAt": "2026-01-17"
+        "installedAt": "2026-01-18",
+        "files": [
+          {
+            "src": "modules/git/workflow/skills/git-workflow/SKILL.md",
+            "dst": ".opencode/skill/git-workflow/SKILL.md"
+          }
+        ]
       }
     }
   }

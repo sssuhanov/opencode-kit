@@ -1,13 +1,11 @@
 # CLI Contract
 
-- List: `opencode-kit list skills|agents|rules`
-- Install: `opencode-kit add-skill <name>` / `add-agent <name>`
-- Lazy rules base: `opencode-kit add-rules-lazy`
-- Rule module: `opencode-kit add-rule <group>/<doc>`
+- List: `opencode-kit list modules`
+- Install: `opencode-kit add-module <group>/<module>`
 - Update installed modules: `opencode-kit update`
 
 ## Strict behaviors
 
 - Copy-only; refuse overwrite (except: `update` overwrites manifest-tracked files).
-- `add-rule` errors if `.opencode/rules/_lazy.md` is missing.
-- `add-rule` errors if kit module is missing `loader.md` or `rule.md`.
+- Installer never edits target `AGENTS.md` or `opencode.json`.
+- Manifest schema is version 2 (module-based); older manifests are not supported.

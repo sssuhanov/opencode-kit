@@ -38,10 +38,7 @@ artifact is the executable script itself.
 
 - Show CLI help: `./bin/opencode-kit --help`
 - Update installed modules: `./bin/opencode-kit update`
-- List available modules:
-  - Skills: `./bin/opencode-kit list skills`
-  - Agents: `./bin/opencode-kit list agents`
-  - Rules: `./bin/opencode-kit list rules`
+- List available modules: `./bin/opencode-kit list modules`
 
 ### Lint / formatting (optional but recommended)
 
@@ -68,10 +65,10 @@ There is no repo-pinned tooling; use what is available on your machine.
   - Main CLI entrypoint. Runs in the *target project root* (uses `git rev-parse`
     when available) and writes/updates `./.opencode-kit.json` there.
 - `modules/`
-  - `modules/skill/<name>/SKILL.md` — skills (on-demand instructions).
-  - `modules/agent/<name>.md` — agent presets.
-  - `modules/rules/_lazy.md` — global lazy rules loader.
-  - `modules/rules/<group>/<doc>/{loader.md,rule.md}` — rule modules.
+  - `modules/<group>/<module>/MODULE.md` — module metadata + version.
+  - `modules/<group>/<module>/agents/<doc>.md` — agent presets.
+  - `modules/<group>/<module>/skills/<skill-id>/SKILL.md` — skills (on-demand instructions).
+  - `modules/<group>/<module>/rules/<doc>.md` — rules (always-on instructions).
 - `support/rules/`
   - Design constraints and conventions for this repo.
 - `ROADMAP.md`
@@ -92,8 +89,9 @@ There is no repo-pinned tooling; use what is available on your machine.
 
 These are enforced by the CLI and should be treated as mandatory.
 
-- Module IDs are **kebab-case**: `^[a-z0-9]+(-[a-z0-9]+)*$`
-- Rule modules are addressed as `<group>/<doc>` where both are kebab-case.
+- Module IDs are `<group>/<module>` where both are **kebab-case**: `^[a-z0-9]+(-[a-z0-9]+)*$`
+- Agent/rule doc IDs (`<doc>`) are kebab-case.
+- Skill IDs (`<skill-id>`) are kebab-case.
 - No spaces in module folder names.
 
 ## Bash style guidelines (`bin/opencode-kit`)
@@ -139,7 +137,7 @@ These are enforced by the CLI and should be treated as mandatory.
 - Prefer clear headings, short bullet lists, and actionable instructions.
 - Do not rely on repo-relative links that break when copied into another repo.
 
-### Skills (`modules/skill/*/SKILL.md`)
+### Skills (`modules/<group>/<module>/skills/<skill-id>/SKILL.md`)
 
 - Use YAML frontmatter with stable keys:
   - `name`, `description`, `compatibility: opencode`
@@ -147,21 +145,16 @@ These are enforced by the CLI and should be treated as mandatory.
 - Include sections similar to existing skills:
   - “What I do”, “When to use me”, and any workflow constraints.
 
-### Agents (`modules/agent/*.md`)
+### Agents (`modules/<group>/<module>/agents/<doc>.md`)
 
 - Keep frontmatter accurate (`id`, `mode`, `model`, `tools` allowances).
 - In the body, state clearly what the agent should focus on.
 - Avoid making direct changes unless the agent is designed to do so.
 
-### Rules and lazy loading
+### Rules (`modules/<group>/<module>/rules/<doc>.md`)
 
-- Lazy loader lives at: `modules/rules/_lazy.md`.
-- A rule module must include both:
-  - `modules/rules/<group>/<doc>/loader.md`
-  - `modules/rules/<group>/<doc>/rule.md`
-- `loader.md` should be lightweight and include the exact pointer line:
-  - `Load full rule: @rule:.opencode/rules/<group>/<doc>/rule.md`
-- `rule.md` contains the full instruction set and should be loaded on demand.
+- Rules are instruction docs meant to be included in `opencode.json -> instructions`.
+- Keep each rule concise and task-focused; no required lazy-loading structure.
 
 ## Imports / formatting / types
 
@@ -187,5 +180,4 @@ This repo is Bash + Markdown, so “imports/types” translate to:
 
 - The CLI changes directory to the *project root* (via `git rev-parse`) before
   writing `.opencode-kit.json`; be careful when assuming paths.
-- The `add-rule` command requires `.opencode/rules/_lazy.md` to exist in the
-  target repo (installed via `add-rules-lazy`).
+- The `update` command requires manifest version 2 (module-based).

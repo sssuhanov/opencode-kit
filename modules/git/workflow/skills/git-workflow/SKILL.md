@@ -1,8 +1,8 @@
 ---
-name: git-change-workflow
+name: git-workflow
 description: Mandatory Git workflow for any project file changes (branch, test checklist, commit, optional merge).
 compatibility: opencode
-version: 1.0.0
+version: 1.0.1
 metadata:
   domain: git
   scope: workflow
