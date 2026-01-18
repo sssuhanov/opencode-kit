@@ -20,7 +20,16 @@
         "moduleVersion": "1.0.0"
       }
     },
-    "skill": {},
+    "skill": {
+      "git-change-workflow": {
+        "source": "modules/skill/git-change-workflow",
+        "moduleVersion": "1.0.0",
+        "installedPaths": [
+          ".opencode/skill/git-change-workflow/SKILL.md"
+        ],
+        "installedAt": "2026-01-17"
+      }
+    },
     "agent": {
       "research": {
         "source": "modules/agent/research.md",
