@@ -543,6 +543,49 @@ def desired_dst_for_rule_src(src_rel):
   return os.path.join(".opencode", "rules", folder, f"{rule_id}.md")
 
 
+def collect_module_files(module_id):
+  group, module = module_id.split("/", 1)
+  src_dir = os.path.join(kit_root, "modules", group, module)
+  if not os.path.isdir(src_dir):
+    raise ValueError(f"kit module not found: {src_dir}")
+
+  files = []
+
+  agents_dir = os.path.join(src_dir, "agents")
+  if os.path.isdir(agents_dir):
+    for entry in sorted(os.listdir(agents_dir)):
+      if not entry.endswith(".md"):
+        continue
+      doc = os.path.splitext(entry)[0]
+      src_rel = os.path.join("modules", group, module, "agents", entry)
+      dst_rel = os.path.join(".opencode", "agent", f"{group}-{module}-{doc}.md")
+      files.append({"src": safe_src_path(src_rel), "dst": safe_dst_path(dst_rel)})
+
+  rules_dir = os.path.join(src_dir, "rules")
+  if os.path.isdir(rules_dir):
+    for entry in sorted(os.listdir(rules_dir)):
+      if not entry.endswith(".md"):
+        continue
+      src_rel = os.path.join("modules", group, module, "rules", entry)
+      dst_rel = desired_dst_for_rule_src(src_rel)
+      files.append({"src": safe_src_path(src_rel), "dst": safe_dst_path(dst_rel)})
+
+  skills_dir = os.path.join(src_dir, "skills")
+  if os.path.isdir(skills_dir):
+    for skill_id in sorted(os.listdir(skills_dir)):
+      skill_file = os.path.join(skills_dir, skill_id, "SKILL.md")
+      if not os.path.isfile(skill_file):
+        continue
+      src_rel = os.path.join("modules", group, module, "skills", skill_id, "SKILL.md")
+      dst_rel = os.path.join(".opencode", "skill", skill_id, "SKILL.md")
+      files.append({"src": safe_src_path(src_rel), "dst": safe_dst_path(dst_rel)})
+
+  if not files:
+    raise ValueError(f"module has no installable content: {module_id}")
+
+  return files
+
+
 def update_one(module_id, entry):
   if not isinstance(entry, dict):
     return False
@@ -567,32 +610,56 @@ def update_one(module_id, entry):
 
   changed = False
   if should_update:
+    expected_files = collect_module_files(module_id)
+
+    existing_by_src = {}
     for file_entry in files:
       if not isinstance(file_entry, dict):
         raise ValueError(f"invalid file entry for module {module_id}: {file_entry}")
 
       src_rel = safe_src_path(file_entry.get("src") or "")
-      old_dst_rel = safe_dst_path(file_entry.get("dst") or "")
+      dst_rel = safe_dst_path(file_entry.get("dst") or "")
+      existing_by_src[src_rel] = dst_rel
+
+    processed_src = set()
+    result_files = []
+
+    for expected in expected_files:
+      src_rel = safe_src_path(expected.get("src") or "")
+      dst_rel = safe_dst_path(expected.get("dst") or "")
 
       src = os.path.join(kit_root, src_rel)
       if not os.path.exists(src):
         raise ValueError(f"kit source missing: {src}")
 
-      new_dst_rel = old_dst_rel
-      if is_rule_src(src_rel):
-        new_dst_rel = safe_dst_path(desired_dst_for_rule_src(src_rel))
+      old_dst_rel = existing_by_src.get(src_rel)
 
-      if new_dst_rel != old_dst_rel and os.path.exists(new_dst_rel):
-        raise ValueError(f"destination already exists: {new_dst_rel} (moving from {old_dst_rel})")
+      # Policy A: refuse overwrite for newly introduced files.
+      if old_dst_rel is None and os.path.exists(dst_rel):
+        raise ValueError(f"destination already exists: {dst_rel} (new file for module {module_id})")
 
-      os.makedirs(os.path.dirname(new_dst_rel), exist_ok=True)
-      shutil.copyfile(src, new_dst_rel)
+      # Also refuse overwrite when moving a file to a new destination.
+      if old_dst_rel is not None and dst_rel != old_dst_rel and os.path.exists(dst_rel):
+        raise ValueError(f"destination already exists: {dst_rel} (moving from {old_dst_rel})")
 
-      if new_dst_rel != old_dst_rel:
+      os.makedirs(os.path.dirname(dst_rel), exist_ok=True)
+      shutil.copyfile(src, dst_rel)
+
+      if old_dst_rel is not None and dst_rel != old_dst_rel:
         if os.path.exists(old_dst_rel):
           os.remove(old_dst_rel)
-        file_entry["dst"] = new_dst_rel
 
+      result_files.append({"src": src_rel, "dst": dst_rel})
+      processed_src.add(src_rel)
+
+    # Remove files that were installed previously but are no longer in the module.
+    for src_rel, old_dst_rel in existing_by_src.items():
+      if src_rel in processed_src:
+        continue
+      if os.path.exists(old_dst_rel):
+        os.remove(old_dst_rel)
+
+    entry["files"] = result_files
     entry["installedAt"] = today
     entry["moduleVersion"] = kit_version
     changed = True

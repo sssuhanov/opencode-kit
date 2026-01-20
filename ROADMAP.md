@@ -11,6 +11,7 @@
 - [x] Make init command for start working with the kit
 - [ ] Change a way how to install kit. Don't want to use it as a <path-to-kit>/bin/opencode-kit everytime
 - [x] Add opertunity to change instructions in opencode.json
+- [x] Update modules by syncing added/removed files
 - [ ] Add status command to cli to check what is installed and explanation if rules are connected to opencode instructions.
 
 ## Agents
