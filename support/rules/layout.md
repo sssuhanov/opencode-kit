@@ -11,4 +11,4 @@
 
 - Agents → `.opencode/agent/<group>-<module>-<doc>.md`
 - Skills → `.opencode/skill/<skill-id>/SKILL.md`
-- Rules → `.opencode/rules/<group>-<module>-<doc>.md`
+- Rules → `.opencode/rules/autoload/<group>-<module>-<doc>.md` or `.opencode/rules/ondemand/<group>-<module>-<doc>.md`

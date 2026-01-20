@@ -8,7 +8,7 @@ It ships a single CLI (`bin/opencode-kit`) plus a set of modules under `modules/
 
 - **Copy-only**: copies files into the target repo (no symlinks).
 - **Refuse overwrite**: if destination exists → hard error (except: `opencode-kit update`).
-- **No auto-edit**: does not automatically edit the target repo’s `AGENTS.md` or `opencode.json`.
+- **No auto-edit (default)**: does not edit the target repo’s `AGENTS.md`; use `opencode-kit init` to create/update `opencode.json`.
 - **Manifest**: writes/updates `./.opencode-kit.json` in the target repo root.
 
 ## How it chooses the target repo
@@ -28,6 +28,14 @@ Use a path to the kit CLI (placeholder):
 
 - `"<path-to-opencode-kit>/bin/opencode-kit" list modules`
 
+### Initialize OpenCode config (recommended)
+
+- `"<path-to-opencode-kit>/bin/opencode-kit" init`
+
+Creates/updates `opencode.json` in the target repo root to include:
+
+- `.opencode/rules/autoload/*.md` under `instructions`
+
 ### Install a module
 
 - `"<path-to-opencode-kit>/bin/opencode-kit" add-module <group>/<module>`
@@ -36,7 +44,8 @@ Installs into the target repo:
 
 - Agents → `.opencode/agent/<group>-<module>-<doc>.md`
 - Skills → `.opencode/skill/<skill-id>/SKILL.md`
-- Rules → `.opencode/rules/<group>-<module>-<doc>.md`
+- Rules (autoload) → `.opencode/rules/autoload/<group>-<module>-<doc>.md`
+- Rules (ondemand) → `.opencode/rules/ondemand/<group>-<module>-<doc>.md`
 
 ## Manifest (`.opencode-kit.json`)
 
@@ -51,7 +60,7 @@ In the target repo root, `opencode-kit` creates/updates `./.opencode-kit.json` (
 
 - `"<path-to-opencode-kit>/bin/opencode-kit" update`
 
-`update` overwrites only the files previously installed by `opencode-kit` (as tracked in `.opencode-kit.json`) when the kit’s `MODULE.md` version is newer.
+`update` overwrites only the files previously installed by `opencode-kit` (as tracked in `.opencode-kit.json`) when the kit’s `MODULE.md` version is newer. If a rule’s `autoload` frontmatter changes, `update` moves the installed rule between `autoload/` and `ondemand/`.
 
 ## Make it easier to run
 

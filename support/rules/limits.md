@@ -2,4 +2,4 @@
 
 - No `remove-*` commands yet.
 - No `status`/`doctor` command yet.
-- No automatic edits to `opencode.json` yet.
+- `opencode-kit init` can create/update `opencode.json` (other commands still do not).

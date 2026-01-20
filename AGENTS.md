@@ -78,7 +78,7 @@ There is no repo-pinned tooling; use what is available on your machine.
 
 - **Copy-only**: installer copies files into a target repo; no symlinks.
 - **Refuse overwrite**: if destination exists, error out (except: `opencode-kit update`).
-- **Do not auto-edit** a target project’s `AGENTS.md` or `opencode.json`.
+- **Do not auto-edit** a target project’s `AGENTS.md`; `opencode-kit init` may create/update `opencode.json` when explicitly run.
 - **Do not change repo-local installer outputs**: never modify this repo’s `.opencode/` folder or `.opencode-kit.json` in patches.
   - If you need to change `.opencode/` or `.opencode-kit.json`, do it by running `bin/opencode-kit` in a target project (installer-managed output), not by editing those files.
   - When developing `update`, test it in a separate temp target repo; don’t run `./bin/opencode-kit update` inside this repo.
@@ -173,7 +173,7 @@ This repo is Bash + Markdown, so “imports/types” translate to:
 - Always check `ROADMAP.md` after making changes and update it if needed so it stays consistent.
 - If you touch installer behavior, ensure:
   - Existing commands still work: `./bin/opencode-kit --help`
-  - You don’t violate: copy-only, refuse overwrite (except update), no auto-edit of target docs.
+  - You don’t violate: copy-only, refuse overwrite (except update), no auto-edit of target docs (except explicit `init`).
 - If adding a new module, update nothing outside `modules/` unless necessary.
 
 ## Common gotchas
