@@ -4,13 +4,9 @@
     "module": {
       "git/workflow": {
         "source": "modules/git/workflow",
-        "moduleVersion": "1.0.1",
-        "installedAt": "2026-01-19",
+        "moduleVersion": "1.0.2",
+        "installedAt": "2026-01-20",
         "files": [
-          {
-            "src": "modules/git/workflow/rules/mandatory-workflow.md",
-            "dst": ".opencode/rules/autoload/git-workflow-mandatory-workflow.md"
-          },
           {
             "src": "modules/git/workflow/skills/git-workflow/SKILL.md",
             "dst": ".opencode/skill/git-workflow/SKILL.md"

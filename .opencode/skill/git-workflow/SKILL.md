@@ -1,8 +1,8 @@
 ---
 name: git-workflow
-description: Mandatory Git workflow for any project file changes (branch, test checklist, commit, optional merge).
+description: Use this Git workflow whenever you change any files in the project (create a branch, run project checks/tests, commit cleanly, and merge only with explicit user approval).
 compatibility: opencode
-version: 1.0.1
+version: 1.0.2
 metadata:
   domain: git
   scope: workflow
