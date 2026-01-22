@@ -14,6 +14,7 @@
 - [x] Update modules by syncing added/removed files
 - [ ] Add status command to cli to check what is installed and explanation if rules are connected to opencode instructions.
 - [x] Add remove-module command to uninstall an installed module (remove its .opencode files using .opencode-kit.json)
+- [ ] Make command easy to use
 
 ## Agents
 
@@ -23,3 +24,8 @@
 ## Tests
 
 - [ ] Add tests to this project
+
+## Development
+
+- [ ] Spec-Driven Development
+- [ ] Make bin file multifile
