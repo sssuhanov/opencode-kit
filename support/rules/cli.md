@@ -1,6 +1,7 @@
 # CLI Contract
 
 - List: `opencode-kit list modules`
+- Status: `opencode-kit status`
 - Init OpenCode config: `opencode-kit init`
 - Install: `opencode-kit add-module <group>/<module>`
 - Update installed modules: `opencode-kit update`

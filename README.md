@@ -23,6 +23,7 @@ Run `opencode-kit` while your shell is inside the target project.
 Use a path to the kit CLI (placeholder):
 
 - `"<path-to-opencode-kit>/bin/opencode-kit" --help`
+- `"<path-to-opencode-kit>/bin/opencode-kit" status`
 
 ### List available modules
 

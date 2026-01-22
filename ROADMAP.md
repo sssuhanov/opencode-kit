@@ -12,7 +12,8 @@
 - [ ] Change a way how to install kit. Don't want to use it as a <path-to-kit>/bin/opencode-kit everytime
 - [x] Add opertunity to change instructions in opencode.json
 - [x] Update modules by syncing added/removed files
-- [ ] Add status command to cli to check what is installed and explanation if rules are connected to opencode instructions.
+- [x] Add status command to cli to show installed modules, versions, updates, and dirty files
+- [ ] Extend status with opencode.json instruction hints (rules connection)
 - [x] Add remove-module command to uninstall an installed module (remove its .opencode files using .opencode-kit.json)
 - [ ] Make command easy to use
 
