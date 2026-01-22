@@ -688,12 +688,118 @@ if modified:
 PY
 }
 
+cmd_remove_module() {
+  local id="${1:-}"
+  [[ -n "$id" ]] || die "usage: opencode-kit remove-module <group>/<module>"
+
+  local group="${id%%/*}"
+  local module="${id#*/}"
+  [[ "$group" != "$id" ]] || die "module id must be <group>/<module> (got: $id)"
+  [[ -n "$module" ]] || die "module id must be <group>/<module> (got: $id)"
+
+  validate_kebab "$group"
+  validate_kebab "$module"
+
+  ensure_manifest
+
+  python3 - "$MANIFEST_FILENAME" "$id" <<'PY'
+import json
+import os
+import sys
+
+manifest_path, module_id = sys.argv[1:]
+
+
+def load_manifest():
+  with open(manifest_path, "r", encoding="utf-8") as f:
+    return json.load(f)
+
+
+def dump_manifest(data):
+  with open(manifest_path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+
+
+def safe_dst_path(path):
+  if os.path.isabs(path):
+    raise ValueError(f"absolute path not allowed in manifest: {path}")
+
+  normalized = os.path.normpath(path)
+  if normalized == ".." or normalized.startswith(".." + os.sep):
+    raise ValueError(f"parent traversal not allowed in manifest: {path}")
+
+  if not (normalized == ".opencode" or normalized.startswith(".opencode" + os.sep)):
+    raise ValueError(f"destination must stay under .opencode/: {path}")
+
+  return normalized
+
+
+manifest = load_manifest()
+if manifest.get("version") != 2:
+  raise SystemExit("error: unsupported manifest version (expected 2). Delete .opencode-kit.json and reinstall.")
+
+installed = manifest.get("installed", {})
+modules = installed.get("module", {})
+if not isinstance(modules, dict):
+  raise SystemExit("error: installed.module must be an object")
+
+entry = modules.get(module_id)
+if entry is None:
+  raise SystemExit(f"error: module is not installed: {module_id}")
+
+if not isinstance(entry, dict):
+  raise SystemExit(f"error: invalid module entry for {module_id}")
+
+files = entry.get("files")
+if not isinstance(files, list) or not files:
+  raise SystemExit(f"error: files missing/empty for module {module_id}")
+
+removed_paths = []
+for file_entry in files:
+  if not isinstance(file_entry, dict):
+    raise SystemExit(f"error: invalid file entry for module {module_id}: {file_entry}")
+
+  dst_rel = safe_dst_path(file_entry.get("dst") or "")
+  removed_paths.append(dst_rel)
+
+  if os.path.exists(dst_rel):
+    if os.path.isdir(dst_rel):
+      raise SystemExit(f"error: expected file but found directory: {dst_rel}")
+    os.remove(dst_rel)
+    print(f"removed file: {dst_rel}")
+  else:
+    print(f"warn: missing file: {dst_rel}")
+
+# Prune empty parent directories (stop at .opencode/).
+parents = set()
+for dst_rel in removed_paths:
+  parent = os.path.dirname(dst_rel)
+  while parent and parent != ".opencode" and parent.startswith(".opencode" + os.sep):
+    parents.add(parent)
+    parent = os.path.dirname(parent)
+
+for path in sorted(parents, key=len, reverse=True):
+  try:
+    os.rmdir(path)
+    print(f"removed empty dir: {path}")
+  except OSError:
+    pass
+
+del modules[module_id]
+dump_manifest(manifest)
+
+print(f"removed module: {module_id}")
+PY
+}
+
 usage() {
   cat <<'HELP'
 Usage:
   opencode-kit list modules
   opencode-kit init
   opencode-kit add-module <group>/<module>
+  opencode-kit remove-module <group>/<module>
   opencode-kit update
 
 Policy:
@@ -737,6 +843,9 @@ main() {
       ;;
     update)
       cmd_update
+      ;;
+    remove-module)
+      cmd_remove_module "${2:-}"
       ;;
     -h|--help|help|"")
       usage

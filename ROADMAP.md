@@ -13,7 +13,7 @@
 - [x] Add opertunity to change instructions in opencode.json
 - [x] Update modules by syncing added/removed files
 - [ ] Add status command to cli to check what is installed and explanation if rules are connected to opencode instructions.
-- [ ] Add remove-module command to uninstall an installed module (remove its .opencode files using .opencode-kit.json)
+- [x] Add remove-module command to uninstall an installed module (remove its .opencode files using .opencode-kit.json)
 
 ## Agents
 
